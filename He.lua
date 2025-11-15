@@ -193,72 +193,22 @@ end
 
 -- MACRO EXECUTOR - Chạy từng dòng
 local function setupfarm()
-    if not url or url == "" then
-        warn("❌ Không có URL macro!")
-        return
-    end
-    
-    local rawUrl = url
-    print("🔄 Đang load macro từ:", rawUrl)
-    
-    local content
-    local success, err = pcall(function()
-        content = game:HttpGet(rawUrl)
+    local success,result=pcall(function()
+        return game:HttpGet(rawFileURL)
     end)
-    
-    if not success or not content then
-        warn("❌ Không thể load file macro:", err)
-        return
-    end
-    
-    print("✅ Macro loaded thành công!")
-    
-    -- Chạy từng dòng trong coroutine riêng
-    task.spawn(function()
-        task.wait(3) -- Đợi game ổn định
-        
-        local lines = {}
-        -- Parse tất cả dòng
-        for line in content:gmatch("[^\r\n]+") do
-            local trimmed = line:match("^%s*(.-)%s*$")
-            if trimmed ~= "" and not trimmed:match("^%-%-") then
-                table.insert(lines, trimmed)
+    if success and result then
+        for line in result:gmatch("[^\r\n]+") do
+            line=line:match("^%s*(.-)%s*$")
+            if line~="" and not line:match("^%-%-") then
+                pcall(function()
+                    local func=loadstring(line)
+                    if func then func() end
+                end)
+                task.wait(0.5)
             end
         end
-        
-        print("📋 Tổng số lệnh:", #lines)
-        print("▶️ Bắt đầu execute macro...")
-        
-        -- Execute từng dòng
-        for i, line in ipairs(lines) do
-            print(string.format("📝 [%d/%d] %s", i, #lines, line))
-            
-            local func, loadErr = loadstring(line)
-            if func then
-                local ok, result = pcall(func)
-                if not ok then
-                    warn("❌ Lỗi khi chạy:", result)
-                end
-            else
-                warn("❌ Không compile được:", loadErr)
-            end
-            
-            -- Delay khác nhau cho place và upgrade
-            if line:match("^place%(") then
-                task.wait(0.5) -- Place delay lâu hơn
-            elseif line:match("^upgrade%(") then
-                task.wait(0.3) -- Upgrade nhanh hơn
-            elseif line:match("^sell%(") then
-                task.wait(0.2)
-            else
-                task.wait(0.1)
-            end
-        end
-        
-        print("🎉 Macro đã chạy xong tất cả lệnh!")
-    end)
+    end
 end
-
 -- Wave change detection
 for _, lbl in ipairs(waveContainer:GetDescendants()) do
     if lbl:IsA("TextLabel") then
